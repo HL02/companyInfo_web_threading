@@ -1,0 +1,29 @@
+﻿<html>
+  <head>
+    <title>Search page</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="static/bootstrap.min.css" rel="stylesheet" media="screen">
+  </head>
+  <body>
+    <div class="container">
+      <br>
+      <form action="" method="post">
+        <input type="text" placeholder="Tỉnh" name="tinh" value="{{
+          request.form.tinh }}">
+         <input type="text" placeholder="Quận" name="quan" value="{{
+          request.form.quan }}">
+          <input type="text" placeholder="Xã" name="xa" value="{{
+          request.form.xa }}">
+          <h3> Nhập số trang muốn tìm kiếm (Từ trang...đến trang...)
+          <input type="text" placeholder="Page" name="page1" value="{{
+          request.form.page1 }}">
+          <input type="text" placeholder="Page" name="page2" value="{{
+          request.form.page2 }}">
+          <h5> Từ trang {{page1}} đến trang {{page2}} bạn có muốn bỏ trang nào không? (nhập 0 nên muốn lấy hết các trang)</h5>
+         <input type="text" placeholder="Page No Need" name="listPage" value="{{
+          request.form.listPage}}">
+        <input class="btn btn-default" type="submit" value="Submit">
+      </form>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+﻿<html>
+  <head>
+    <title>Result page</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="static/bootstrap.min.css" rel="stylesheet" media="screen">
+     </head>
+     <body>
+     <h1>Result</h1>
+      {% if content ==[] %}
+	<h3>Cannot find anything</h3>
+      {% endif %}
+      {% if content!=[] %}
+         {% for i in content %}
+	<h3>{{i}}</h3>
+         {% endfor %}
+      {% endif %}
+      {% if error !=None %}
+        <h2>{{error}}<a href="/login"> Login</a></h2>
+      {% endif %}
+      <div class="container">
+      <br>
+      <form action="" method="post">
+        <input type="text" placeholder="Other search? (Yes/No)" name="username" value="{{
+          request.form.username }}">
+         <input class="btn btn-default" type="submit" value="Search">
+      </form>
+        {% if session.username %}
+            <h6>You are Register as {{session.username}} <a href="/logout">Logout</a></h6>
+        {% endif %}
+    </div>
+  </body>
+</html>
