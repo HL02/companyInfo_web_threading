@@ -6,18 +6,21 @@
      </head>
      <body>
      <h1>Result</h1>
-      {% if content ==[] %}
-	<h3>Cannot find anything</h3>
-      {% endif %}
-      {% if content!=[] %}
-         {% for i in content %}
-	<h3>{{i}}</h3>
-         {% endfor %}
-      {% endif %}
-      {% if error !=None %}
-        <h2>{{error}}<a href="/login"> Login</a></h2>
-      {% endif %}
-      <div class="container">
+      {% if error==None %}
+      	{% if content ==[] %}
+	     <h3>Cannot find anything</h3>
+             {% endif %}
+             {% if content!=[] %}
+	     {% for y in range(1,num+1) %}
+		{% if y in listPage %}
+                  	   <h2>Page {{y}}</h2>
+	     	{% for i in content %}
+	               <h3>{{i}}</h3>
+	             {% endfor %}
+	             {% endif %}
+                {% endfor %}
+          {% endif %}
+   <div class="container">
       <br>
       <form action="" method="post">
         <input type="text" placeholder="Other search? (Yes/No)" name="username" value="{{
@@ -28,5 +31,9 @@
             <h6>You are Register as {{session.username}} <a href="/logout">Logout</a></h6>
         {% endif %}
     </div>
+      {% endif %}
+      {% if error !=None %}
+        	<h2>{{error}}<a href="/login"> Login</a></h2>
+       {% endif %}
   </body>
 </html>

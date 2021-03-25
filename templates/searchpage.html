@@ -1,0 +1,23 @@
+﻿<html>
+  <head>
+    <title>Search page</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="static/bootstrap.min.css" rel="stylesheet" media="screen">
+  </head>
+  <body>
+    <div class="container">
+      <br>
+      <form action="" method="post">
+      {% if error !=None %}
+        	<h2>{{error}}<a href="/login"> Login</a></h2>
+       {% endif %}
+       {% if error==None %}
+         	<h3> Có tất cả {{num}} trang </h3>
+         	<h5> Bạn có muốn lấy trang nào? (nhập 0 nên muốn lấy hết các trang)</h5>
+         	<input type="text" placeholder="Page Need" name="listPage" value="{{request.form.listPage}}">
+        	<input class="btn btn-default" type="submit" value="Submit">
+      {% endif %}
+      </form>
+    </div>
+  </body>
+</html>
