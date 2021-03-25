@@ -6,6 +6,9 @@
      </head>
      <body>
      <h1>Result</h1>
+      {% if error !=None %}
+        	<h2>{{error}}<a href="/login"> Login</a></h2>
+      {% endif %}
       {% if error==None %}
       	{% if content ==[] %}
 	     <h3>Cannot find anything</h3>
@@ -32,8 +35,5 @@
         {% endif %}
     </div>
       {% endif %}
-      {% if error !=None %}
-        	<h2>{{error}}<a href="/login"> Login</a></h2>
-       {% endif %}
   </body>
 </html>

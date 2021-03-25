@@ -128,7 +128,7 @@ def result():
                             content.append(c1)
                 else:
                     pass
-    else:
+    if s==None:
         error='Nothing to see. Please login and search'
     if request.method == 'POST':
         returnObj=request.form['username'].lower()
