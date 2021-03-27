@@ -2,6 +2,9 @@ from flask import Flask, render_template, redirect, url_for, request,session
 import requests,bs4,re
 from wtforms import Form, StringField, SelectField
 from flask_session import Session
+from threading import Thread
+from queue import Queue
+import numpy as np
 app=Flask(__name__)
 app.config['SESSION_PERMANENT']=False
 app.config['SESSION_TYPE']='filesystem'
@@ -39,8 +42,29 @@ def search():
         session['tinh']=request.form['tinh']
         session['quan']=request.form['quan']
         session['xa']=request.form['xa']
+        session['nganhnghe']=request.form['nganhnghe']
         return redirect(url_for('searchpage'))
     return render_template('search.html')
+def get_elems(url,s):
+    res=s.get(url)
+    soup=bs4.BeautifulSoup(res.text,features="html.parser")
+    elems=soup.select('div a')
+    return elems
+def search_place(a,b,v):
+    url_1=''
+    for i in range(len(a)):
+        if a[i].get('class')==v:
+            if b.lower() in a[i].getText(' ').lower():
+                url_1='https://vinabiz.org'+a[i].get('href')
+                return url_1
+def numPage(url_xa):
+    res=requests.get(url_xa)
+    soup=bs4.BeautifulSoup(res.text,features="html.parser")
+    elems=soup.select('li a')
+    regex=re.compile(r'1 of (\d+)')
+    mo=regex.search(elems[15].getText())
+    num=mo.group(1)
+    return num
 @app.route('/searchpage', methods=['GET', 'POST'])
 def searchpage():
     error = None
@@ -54,82 +78,96 @@ def searchpage():
     if s!=None:
     #tim tinh
     # elems_tinh
-        res_tinh=s.get(url)
-        soup_tinh=bs4.BeautifulSoup(res_tinh.text,features="html.parser")
-        elems_tinh=soup_tinh.select('div a')
-    # url_tinh=search_place(elems_tinh,tinh,v)
-        for x in range(len(elems_tinh)):
-            if elems_tinh[x].get('class')==v:
-                if tinh.lower() in elems_tinh[x].getText(' ').lower():
-                    url_tinh='https://vinabiz.org'+elems_tinh[x].get('href')
-                    break
+        elems_tinh=get_elems(url,s)
+        url_tinh=search_place(elems_tinh,tinh,v) 
     #tim quan
-    # elems_quan
-        res_quan=s.get(url_tinh)
-        soup_quan=bs4.BeautifulSoup(res_quan.text,features="html.parser")
-        elems_quan=soup_quan.select('div a')
-    # url_quan=search_place(elems_quan,quan,v)
-        for y in range(len(elems_quan)):
-            if elems_quan[y].get('class')==v:
-                if quan.lower() in elems_quan[y].getText(' ').lower():
-                    url_quan='https://vinabiz.org'+elems_quan[y].get('href')
-                    break
+        elems_quan=get_elems(url_tinh,s)
+        url_quan=search_place(elems_quan,quan,v)    
     #tim xa
-    # elems_xa
-        res_xa=s.get(url_quan)
-        soup_xa=bs4.BeautifulSoup(res_xa.text,features="html.parser")
-        elems_xa=soup_xa.select('div a')
-    # url_xa=search_place(elems_xa,xa,v)
-        for z in range(len(elems_xa)):
-            if elems_xa[z].get('class')==v:
-                if xa.lower() in elems_xa[z].getText(' ').lower():
-                    session['url_xa']='https://vinabiz.org'+elems_xa[z].get('href')
-                    break
+        elems_xa=get_elems(url_quan,s)
+        url_xa=search_place(elems_xa,xa,v)    
     #tim so trang
-        url_xa=session['url_xa']
-        res=requests.get(url_xa)
-        soup=bs4.BeautifulSoup(res.text,features="html.parser")
-        elems=soup.select('li a')
-        regex=re.compile(r'1 of (\d+)')
-        mo=regex.search(elems[15].getText())
-        session['num']=mo.group(1)
+        session['url_xa']=url_xa
+        session['num']=numPage(url_xa)
         if request.method == 'POST':
             session['listPage']=request.form['listPage']
             return redirect(url_for('result'))
     else:
         error='Please login to see the result'
     return render_template('searchpage.html',num=session.get('num'),error=error)   
+def content_page(y,url_xa,s,queue_in,queue_out,c):#Get information
+    content=queue_in.get()
+    url_cty=url_xa+'/'+str(y)
+    res=s.get(url_cty)
+    soup=bs4.BeautifulSoup(res.text,features="html.parser")
+    elems=soup.select('h4 a')
+    for i in range (len(elems)):
+        e=[]
+        linkCompany='http://vinabiz.org'+elems[i].get('href')
+        res1=s.get(linkCompany)
+        soup1=bs4.BeautifulSoup(res1.text,features="html.parser")
+        elems1=soup1.select('td')
+        nganhnghe=elems1[48].getText().lstrip('\n').split(' ')
+        if 'NNT đang hoạt động (đã được cấp GCN ĐKT)' in elems1[14].getText():
+            for i in c:
+                if i in nganhnghe:
+                    e.append(i in nganhnghe)
+            if len(e)>=len(c)-1:
+                c1=elems1[2].getText()+' - '+elems1[6].getText().lstrip(' \n')+' - '+elems1[12].getText()+' - '+elems1[48].getText().lstrip('\n')+' - '+'Phone: '+elems1[20].getText().lstrip('\n')+'\n' #Get phoneNum
+                content.append(c1)
+    queue_out.put(content,c)
+def totalPage(listPage,num):
+    totalPage=[]
+    if listPage==[0,0]:
+        totalPage=np.arange(1,num+1)
+    else:
+        for i in range(1,num+1):
+            if i in listPage:
+                totalPage.append(i)
+    tuplePage_=tuplePage(totalPage)
+    return tuplePage_
+def tuplePage(totalPage):
+    c=[]
+    for i in range(0,len(totalPage),2):
+        if i+1>(len(totalPage)-1):
+            b=tuple([totalPage[i],None])
+            c.append(b)
+        else:
+            b=tuple([totalPage[i],totalPage[i+1]])
+            c.append(b)
+    return c
 @app.route('/result',methods=['GET', 'POST'])
 def result():
     error=None
     listPage='0'
     num=session.get('num')
     if session['n']!=None: 
-        session['content']=[]
         s=session.get('s')
         num=int(num)
-        url_xa=session['url_xa']
+        url_xa=session.get('url_xa')
+        session['content']=[]
+        c=session['nganhnghe'].split(' ')
         listPage=list(eval(listPage+','+session['listPage']))
-        for y in range(1,int(num)+1):#Get information
-            if y in listPage:
-                url_cty=url_xa+'/'+str(y)
-                res=s.get(url_cty)
-                soup=bs4.BeautifulSoup(res.text,features="html.parser")
-                elems=soup.select('h4 a')
-                for i in range(len(elems)):
-                    linkCompany='http://vinabiz.org'+elems[i].get('href')
-                    res1=s.get(linkCompany)
-                    soup1=bs4.BeautifulSoup(res1.text,features="html.parser")
-                    elems1=soup1.select('td')
-                    if 'NNT đang hoạt động (đã được cấp GCN ĐKT)' in elems1[14].getText():
-                        if elems1[20].getText()!='\n':
-                            c1=elems1[2].getText()+' - '+elems1[6].getText().lstrip(' \n')+' - '+elems1[12].getText()+' - '+elems1[48].getText().lstrip('\n')+' - '+'Phone: '+elems1[20].getText().lstrip('\n') #Get phoneNum
-                            session['content'].append(c1)
-                        else:
-                            c1=elems1[2].getText()+' - '+elems1[6].getText().lstrip(' \n')+' - '+elems1[12].getText()+' - '+elems1[48].getText().lstrip('\n')+' - '+'Phone: 0'
-                            session['content'].append(c1)
-                else:
-                    pass
+        tuplePage=totalPage(listPage,num)
+        for x,y in tuplePage:
+            queue1=Queue()
+            queue2=Queue()
+            queue1.put(session['content'])
+            if y!=None:
+                t=Thread(target=content_page, args=(x,url_xa,s,queue1,queue2,c))
+                t2=Thread(target=content_page, args=(y,url_xa,s,queue2,queue1,c))
+                t.start()
+                t2.start()
+                t.join()
+                t2.join()
+            if y==None:
+                t=Thread(target=content_page,args=(x,url_xa,s,queue1,queue2,c))
+                t.start()
+                t.join()
+            if not queue1.empty():
+                session['content']=queue1.get()
+            if not queue2.empty():
+                session['content']=queue2.get()
     if session['n']==None:
         error='Nothing to see. Please login and search'
     if request.method == 'POST':

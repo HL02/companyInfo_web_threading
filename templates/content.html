@@ -13,15 +13,9 @@
       	{% if content ==[] %}
 	     <h3>Cannot find anything</h3>
              {% endif %}
-             {% if content!=[] %}
-	     {% for y in range(1,num+1) %}
-		{% if y in listPage %}
-                  	   <h2>Page {{y}}</h2>
 	     	{% for i in content %}
 	               <h3>{{i}}</h3>
 	             {% endfor %}
-	             {% endif %}
-                {% endfor %}
           {% endif %}
    <div class="container">
       <br>
@@ -34,6 +28,5 @@
             <h6>You are Register as {{session.username}} <a href="/logout">Logout</a></h6>
         {% endif %}
     </div>
-      {% endif %}
   </body>
 </html>
