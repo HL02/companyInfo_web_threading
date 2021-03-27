@@ -3,7 +3,7 @@ import requests,bs4,re
 from wtforms import Form, StringField, SelectField
 from flask_session import Session
 from threading import Thread
-from queue import Queue
+from multiprocess import Queue, Process, Pool, Manager
 import numpy as np
 app=Flask(__name__)
 app.config['SESSION_PERMANENT']=False
@@ -95,8 +95,8 @@ def searchpage():
     else:
         error='Please login to see the result'
     return render_template('searchpage.html',num=session.get('num'),error=error)   
-def content_page(y,url_xa,s,queue_in,queue_out,c):#Get information
-    content=queue_in.get()
+def content_page(y,url_xa,s,queue,c):#Get information
+    content=queue.get()
     url_cty=url_xa+'/'+str(y)
     res=s.get(url_cty)
     soup=bs4.BeautifulSoup(res.text,features="html.parser")
@@ -107,15 +107,17 @@ def content_page(y,url_xa,s,queue_in,queue_out,c):#Get information
         res1=s.get(linkCompany)
         soup1=bs4.BeautifulSoup(res1.text,features="html.parser")
         elems1=soup1.select('td')
-        nganhnghe=elems1[48].getText().lstrip('\n').split(' ')
         if 'NNT đang hoạt động (đã được cấp GCN ĐKT)' in elems1[14].getText():
+            nganhnghe=elems1[48].getText().lstrip('\n').split(' ')
             for i in c:
+                if i=='0':
+                    break
                 if i in nganhnghe:
                     e.append(i in nganhnghe)
-            if len(e)>=len(c)-1:
+            if len(e)>=len(c)-1 or e==[]: 
                 c1=elems1[2].getText()+' - '+elems1[6].getText().lstrip(' \n')+' - '+elems1[12].getText()+' - '+elems1[48].getText().lstrip('\n')+' - '+'Phone: '+elems1[20].getText().lstrip('\n')+'\n' #Get phoneNum
                 content.append(c1)
-    queue_out.put(content,c)
+    queue.put(content)
 def totalPage(listPage,num):
     totalPage=[]
     if listPage==[0,0]:
@@ -124,18 +126,7 @@ def totalPage(listPage,num):
         for i in range(1,num+1):
             if i in listPage:
                 totalPage.append(i)
-    tuplePage_=tuplePage(totalPage)
-    return tuplePage_
-def tuplePage(totalPage):
-    c=[]
-    for i in range(0,len(totalPage),2):
-        if i+1>(len(totalPage)-1):
-            b=tuple([totalPage[i],None])
-            c.append(b)
-        else:
-            b=tuple([totalPage[i],totalPage[i+1]])
-            c.append(b)
-    return c
+    return totalPage
 @app.route('/result',methods=['GET', 'POST'])
 def result():
     error=None
@@ -148,26 +139,18 @@ def result():
         session['content']=[]
         c=session['nganhnghe'].split(' ')
         listPage=list(eval(listPage+','+session['listPage']))
-        tuplePage=totalPage(listPage,num)
-        for x,y in tuplePage:
-            queue1=Queue()
-            queue2=Queue()
-            queue1.put(session['content'])
-            if y!=None:
-                t=Thread(target=content_page, args=(x,url_xa,s,queue1,queue2,c))
-                t2=Thread(target=content_page, args=(y,url_xa,s,queue2,queue1,c))
-                t.start()
-                t2.start()
-                t.join()
-                t2.join()
-            if y==None:
-                t=Thread(target=content_page,args=(x,url_xa,s,queue1,queue2,c))
-                t.start()
-                t.join()
-            if not queue1.empty():
-                session['content']=queue1.get()
-            if not queue2.empty():
-                session['content']=queue2.get()
+        totalPage_=totalPage(listPage,num)
+        m=Manager()
+        q=m.Queue()
+        q.put(session['content'])
+        p={}
+        for y in totalPage_:
+            p[y]=Thread(target=content_page,args=(y,url_xa,s,q,c))
+            p[y].start()
+        for y in totalPage_:
+            p[y].join()
+        if not q.empty():
+            session['content']=q.get()
     if session['n']==None:
         error='Nothing to see. Please login and search'
     if request.method == 'POST':

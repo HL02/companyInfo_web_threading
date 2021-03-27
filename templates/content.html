@@ -13,10 +13,10 @@
       	{% if content ==[] %}
 	     <h3>Cannot find anything</h3>
              {% endif %}
-	     	{% for i in content %}
-	               <h3>{{i}}</h3>
+	{% if len(content) > 1 %}
+	     {% for i in content %}
+	          {% for i in 
 	             {% endfor %}
-          {% endif %}
    <div class="container">
       <br>
       <form action="" method="post">
@@ -28,5 +28,6 @@
             <h6>You are Register as {{session.username}} <a href="/logout">Logout</a></h6>
         {% endif %}
     </div>
+   {% endif %}
   </body>
 </html>
